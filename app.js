@@ -6,7 +6,9 @@ const sqlite3 = require("sqlite3");
 const dbPath = path.join(__dirname, "todoApplication.db");
 let db = null;
 app.use(express.json());
-
+const format = require("date-fns/format");
+const parse = require("date-fns/parse");
+const isValid = require("date-fns/isValid");
 const initializeDbAndServer = async () => {
   try {
     db = await open({
@@ -165,14 +167,31 @@ app.get("/todos/:todoId", async (request, response) => {
 //GET Todo API On Date
 app.get("/agenda/", async (request, response) => {
   const { date } = request.query;
-  const getTodoQuery = `SELECT * FROM todo WHERE due_date = '${date}';`;
-  const todoArray = await db.all(getTodoQuery);
-  response.send(convertJsonToObjectResponse(todoArray));
+  const dateObj = new Date(date);
+  //console.log(dateObj);
+  //console.log(typeof dateObj);
+  //
+
+  //console.log(formattedDate);
+  //console.log(typeof formattedDate);
+  //console.log(isValid(dateObj));
+  //const isValidDate = isValid(formattedDate);
+  //console.log(isValidDate);
+  if (isValid(dateObj)) {
+    const formattedDate = format(dateObj, "yyyy-MM-dd");
+    const getTodoQuery = `SELECT * FROM todo WHERE due_date = '${formattedDate}';`;
+    const todoArray = await db.all(getTodoQuery);
+    response.send(convertJsonToObjectResponse(todoArray));
+  } else {
+    response.status(400);
+    response.send("Invalid Due Date");
+  }
 });
 //POST Todo API
 app.post("/todos/", async (request, response) => {
   const newTodo = request.body;
   const { id, todo, priority, status, category, dueDate } = newTodo;
+  const date = new Date(dueDate);
   if (validStatus(status) === false) {
     response.status(400);
     response.send("Invalid Todo Status");
@@ -182,6 +201,9 @@ app.post("/todos/", async (request, response) => {
   } else if (validCategory(category) === false) {
     response.status(400);
     response.send("Invalid Todo Category");
+  } else if (isValid(date) === false) {
+    response.status(400);
+    response.send("Invalid Due Date");
   } else {
     const postTodoQuery = `INSERT INTO todo (id,todo,category,priority,status,due_date)
         VALUES (
@@ -230,6 +252,9 @@ app.put("/todos/:todoId", async (request, response) => {
   } else if (validCategory(category) === false) {
     response.status(400);
     response.send("Invalid Todo Category");
+  } else if (isValid(new Date(newTodo.dueDate)) === false) {
+    response.status(400);
+    response.send("Invalid Due Date");
   } else {
     const updateTodoQuery = `
     UPDATE todo
